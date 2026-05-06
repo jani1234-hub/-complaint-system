@@ -1,0 +1,15 @@
+{
+  "buildCommand": "cd backend && npm install",
+  "outputDirectory": "backend",
+  "functions": {
+    "backend/**/*.js": {
+      "runtime": "nodejs18.x"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/backend/api/$1.js"
+    }
+  ]
+}

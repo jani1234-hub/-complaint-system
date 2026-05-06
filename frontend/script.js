@@ -20,26 +20,20 @@ function getApiUrl() {
   // 3. Auto-detect based on current hostname
   const hostname = window.location.hostname;
   const port = window.location.port;
+  const protocol = window.location.protocol;
   
-  // If accessing via localhost or 127.0.0.1
+  // If accessing via localhost or 127.0.0.1 (development)
   if (hostname === 'localhost' || hostname === '127.0.0.1') {
-    // Try default backend port 5000
     return 'http://localhost:5000/api';
   }
   
   // If accessing via network IP (for mobile testing)
   if (/^192\.168\.|^10\.|^172\.(1[6-9]|2[0-9]|3[0-1])\.|^169\.254\./.test(hostname)) {
-    // Try to detect backend on the same IP but port 5000
     return `http://${hostname}:5000/api`;
   }
   
-  // For production - replace with your actual domain
-  if (hostname.includes('yourdomain.com')) {
-    return 'https://api.yourdomain.com/api';
-  }
-  
-  // Default fallback
-  return 'http://localhost:5000/api';
+  // For production (Vercel or any domain) - use relative path to same origin
+  return '/api';
 }
 
 // Configuration object
