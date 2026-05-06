@@ -1,40 +1,44 @@
-const mongoose = require('mongoose');
 const Complaint = require('../../../models/Complaint');
-const { adminAuth } = require('../../../middleware/auth');
-
-const connectDB = async () => {
-  if (mongoose.connection.readyState === 1) return;
-  await mongoose.connect(process.env.MONGODB_URI);
-};
+const { verifyToken } = require('../../../middleware/auth');
 
 module.exports = async (req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
   // Check admin auth
   const token = req.headers.authorization?.split(' ')[1];
   if (!token) {
     return res.status(401).json({ success: false, message: 'Unauthorized' });
   }
 
-  await connectDB();
-
   if (req.method === 'GET') {
-    // Get all complaints with filters
     try {
       const { category, status, search } = req.query;
-      let filter = {};
+      let complaints = Complaint.getAllComplaints();
 
-      if (category) filter.category = category;
-      if (status) filter.status = status;
+      if (category) {
+        complaints = complaints.filter(c => c.category === category);
+      }
+      if (status) {
+        complaints = complaints.filter(c => c.status === status);
+      }
       if (search) {
-        filter.$or = [
-          { name: { $regex: search, $options: 'i' } },
-          { email: { $regex: search, $options: 'i' } },
-          { subject: { $regex: search, $options: 'i' } },
-          { target: { $regex: search, $options: 'i' } },
-          { rollno: { $regex: search, $options: 'i' } }
-        ];
+        const query = search.toLowerCase();
+        complaints = complaints.filter(c =>
+          c.name.toLowerCase().includes(query) ||
+          c.email.toLowerCase().includes(query) ||
+          c.subject.toLowerCase().includes(query) ||
+          c.target.toLowerCase().includes(query) ||
+          c.rollno.toLowerCase().includes(query)
+        );
       }
 
-      const complaints = await Complaint.find(filter).sort({ createdAt: -1 });
+      complaints.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
       const stats = {
         total: complaints.length,

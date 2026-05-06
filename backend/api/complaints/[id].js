@@ -1,20 +1,19 @@
-const mongoose = require('mongoose');
 const Complaint = require('../../models/Complaint');
 
-const connectDB = async () => {
-  if (mongoose.connection.readyState === 1) return;
-  await mongoose.connect(process.env.MONGODB_URI);
-};
-
 module.exports = async (req, res) => {
-  await connectDB();
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
 
   const { id } = req.query;
 
   if (req.method === 'GET') {
-    // Get complaint by ID
     try {
-      const complaint = await Complaint.findById(id);
+      const complaint = Complaint.getComplaintById(id);
       if (!complaint) {
         return res.status(404).json({
           success: false,

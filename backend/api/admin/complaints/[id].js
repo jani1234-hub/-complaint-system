@@ -1,12 +1,14 @@
-const mongoose = require('mongoose');
 const Complaint = require('../../../models/Complaint');
 
-const connectDB = async () => {
-  if (mongoose.connection.readyState === 1) return;
-  await mongoose.connect(process.env.MONGODB_URI);
-};
-
 module.exports = async (req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
   // Check admin auth
   const token = req.headers.authorization?.split(' ')[1];
   if (!token) {
@@ -14,10 +16,8 @@ module.exports = async (req, res) => {
   }
 
   const { id } = req.query;
-  await connectDB();
 
   if (req.method === 'PUT') {
-    // Update complaint status
     try {
       const { status } = req.body;
 
@@ -28,11 +28,7 @@ module.exports = async (req, res) => {
         });
       }
 
-      const complaint = await Complaint.findByIdAndUpdate(
-        id,
-        { status, updatedAt: Date.now() },
-        { new: true, runValidators: true }
-      );
+      const complaint = Complaint.updateComplaint(id, { status });
 
       if (!complaint) {
         return res.status(404).json({
@@ -50,9 +46,8 @@ module.exports = async (req, res) => {
       res.status(500).json({ success: false, message: error.message });
     }
   } else if (req.method === 'DELETE') {
-    // Delete complaint
     try {
-      const complaint = await Complaint.findByIdAndDelete(id);
+      const complaint = Complaint.deleteComplaint(id);
 
       if (!complaint) {
         return res.status(404).json({

@@ -1,12 +1,14 @@
-const mongoose = require('mongoose');
 const Complaint = require('../../models/Complaint');
 
-const connectDB = async () => {
-  if (mongoose.connection.readyState === 1) return;
-  await mongoose.connect(process.env.MONGODB_URI);
-};
-
 module.exports = async (req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
   // Check admin auth
   const token = req.headers.authorization?.split(' ')[1];
   if (!token) {
@@ -18,8 +20,7 @@ module.exports = async (req, res) => {
   }
 
   try {
-    await connectDB();
-    const complaints = await Complaint.find();
+    const complaints = Complaint.getAllComplaints();
     const stats = {
       total: complaints.length,
       pending: complaints.filter(c => c.status === 'Pending').length,

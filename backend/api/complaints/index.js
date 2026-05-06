@@ -1,14 +1,13 @@
-const mongoose = require('mongoose');
-const { body, validationResult } = require('express-validator');
 const Complaint = require('../../models/Complaint');
 
-const connectDB = async () => {
-  if (mongoose.connection.readyState === 1) return;
-  await mongoose.connect(process.env.MONGODB_URI);
-};
-
 module.exports = async (req, res) => {
-  await connectDB();
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
 
   if (req.method === 'POST') {
     // Create new complaint
@@ -28,17 +27,16 @@ module.exports = async (req, res) => {
     }
 
     try {
-      const newComplaint = new Complaint({
-        name: name.trim(),
-        email: email.trim().toLowerCase(),
-        rollno: rollno.trim(),
+      const newComplaint = Complaint.createComplaint({
+        name,
+        email,
+        rollno,
         category,
-        target: target.trim(),
-        subject: subject.trim(),
-        complaint: complaint.trim()
+        target,
+        subject,
+        complaint
       });
 
-      await newComplaint.save();
       res.status(201).json({
         success: true,
         data: newComplaint,
