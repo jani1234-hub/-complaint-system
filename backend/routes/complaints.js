@@ -10,8 +10,8 @@ const { adminAuth, generateToken } = require('../middleware/auth');
 router.post('/admin/login', async (req, res) => {
   try {
     const { username, password } = req.body;
-    
-    if (username === process.env.ADMIN_USERNAME && 
+
+    if (username === process.env.ADMIN_USERNAME &&
         password === process.env.ADMIN_PASSWORD) {
       const token = generateToken();
       res.json({
@@ -49,9 +49,8 @@ router.post('/complaints', [
       });
     }
 
-    const complaint = new Complaint(req.body);
-    await complaint.save();
-    
+    const complaint = Complaint.createComplaint(req.body);
+
     res.status(201).json({
       success: true,
       data: complaint,
@@ -65,7 +64,7 @@ router.post('/complaints', [
 // Get complaint by ID (public)
 router.get('/complaints/:id', async (req, res) => {
   try {
-    const complaint = await Complaint.findById(req.params.id);
+    const complaint = Complaint.getComplaintById(req.params.id);
     if (!complaint) {
       return res.status(404).json({ 
         success: false, 
@@ -84,29 +83,34 @@ router.get('/complaints/:id', async (req, res) => {
 router.get('/admin/complaints', adminAuth, async (req, res) => {
   try {
     const { category, status, search } = req.query;
-    let filter = {};
-    
-    if (category) filter.category = category;
-    if (status) filter.status = status;
-    if (search) {
-      filter.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } },
-        { subject: { $regex: search, $options: 'i' } },
-        { target: { $regex: search, $options: 'i' } },
-        { rollno: { $regex: search, $options: 'i' } }
-      ];
+    let complaints = Complaint.getAllComplaints();
+
+    if (category) {
+      complaints = complaints.filter(c => c.category === category);
     }
-    
-    const complaints = await Complaint.find(filter).sort({ createdAt: -1 });
-    
+    if (status) {
+      complaints = complaints.filter(c => c.status === status);
+    }
+    if (search) {
+      const query = search.toLowerCase();
+      complaints = complaints.filter(c =>
+        c.name.toLowerCase().includes(query) ||
+        c.email.toLowerCase().includes(query) ||
+        c.subject.toLowerCase().includes(query) ||
+        c.target.toLowerCase().includes(query) ||
+        c.rollno.toLowerCase().includes(query)
+      );
+    }
+
+    complaints.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
     const stats = {
       total: complaints.length,
       pending: complaints.filter(c => c.status === 'Pending').length,
       inProgress: complaints.filter(c => c.status === 'In Progress').length,
       resolved: complaints.filter(c => c.status === 'Resolved').length
     };
-    
+
     res.json({ 
       success: true, 
       data: complaints,
@@ -121,27 +125,23 @@ router.get('/admin/complaints', adminAuth, async (req, res) => {
 router.put('/admin/complaints/:id', adminAuth, async (req, res) => {
   try {
     const { status } = req.body;
-    
+
     if (!['Pending', 'In Progress', 'Resolved'].includes(status)) {
       return res.status(400).json({ 
         success: false, 
         message: 'Invalid status value' 
       });
     }
-    
-    const complaint = await Complaint.findByIdAndUpdate(
-      req.params.id,
-      { status, updatedAt: Date.now() },
-      { new: true, runValidators: true }
-    );
-    
+
+    const complaint = Complaint.updateComplaint(req.params.id, { status });
+
     if (!complaint) {
       return res.status(404).json({ 
         success: false, 
         message: 'Complaint not found' 
       });
     }
-    
+
     res.json({ 
       success: true, 
       data: complaint,
@@ -155,15 +155,15 @@ router.put('/admin/complaints/:id', adminAuth, async (req, res) => {
 // Delete complaint
 router.delete('/admin/complaints/:id', adminAuth, async (req, res) => {
   try {
-    const complaint = await Complaint.findByIdAndDelete(req.params.id);
-    
+    const complaint = Complaint.deleteComplaint(req.params.id);
+
     if (!complaint) {
       return res.status(404).json({ 
         success: false, 
         message: 'Complaint not found' 
       });
     }
-    
+
     res.json({ 
       success: true, 
       message: 'Complaint deleted successfully' 
@@ -176,7 +176,7 @@ router.delete('/admin/complaints/:id', adminAuth, async (req, res) => {
 // Get stats only
 router.get('/admin/stats', adminAuth, async (req, res) => {
   try {
-    const complaints = await Complaint.find();
+    const complaints = Complaint.getAllComplaints();
     const stats = {
       total: complaints.length,
       pending: complaints.filter(c => c.status === 'Pending').length,
